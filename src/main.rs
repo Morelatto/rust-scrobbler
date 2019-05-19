@@ -4,6 +4,8 @@ use mongodb::db::ThreadedDatabase;
 
 use rustfm_scrobble::{Scrobbler, Scrobble};
 
+use std::thread;
+
 static mut SCROBBLER: Option<rustfm_scrobble::Scrobbler> = None;
 
 macro_rules! scrobble {
@@ -29,26 +31,33 @@ fn auth_scrobbler() {
     }
 }
 
-// fn adsfasdf(artist: String, track: String, album: String) {
-//     let sc = scrobbler.ok()
-//     let track_one = scrobble!(artist, track, album);
-//     match sc.now_playing(track_one) {
-//         Ok(_) => { println!("Sent now playing! "); }
-//         Err(e) => { println!("{}", e); }
-//     }
+fn scrobble(artist: &str, track: &str, album: &str) {
+    let track = scrobble!(artist, track, album);
+    unsafe {
+    	match &SCROBBLER {
+    		Some(scrobbler) => 
+    			match scrobbler.scrobble(track) {
+			        Ok(_) => { println!("Scrobbled {}", artist); }
+			        Err(e) => { println!("{}", e); }
+			    },
+			None => {},
+    		}
+    }
+}
 
-//     let track_two = scrobble!("Los Campesinos!", "The Time Before the Last", "No Blues");
-//     match sc.scrobble(track_two) {
-//         Ok(_) => { println!("Sent scrobble!"); }
-//         Err(e) => { println!("{}", e); }
-//     }
-
-//     // let track_three = scrobble!("Los Campesinos!", "Selling Rope", "No Blues");
-//     // match scrobbler.now_playing(track_three) {
-//     //     Ok(_) => { println!("Sent now playing! "); }
-//     //     Err(e) => { println!("{}", e); }
-//     // }
-// }
+fn now_playing(artist: &str, track: &str, album: &str) {
+    let track = scrobble!(artist, track, album);
+    unsafe {
+    	match &SCROBBLER {
+    		Some(scrobbler) => 
+    			match scrobbler.now_playing(track) {
+			        Ok(_) => { println!("Now playing {}", artist); }
+			        Err(e) => { println!("{}", e); }
+			    },
+			None => {},
+    		}
+    }
+}
 
 fn main() {
     auth_scrobbler();
@@ -56,14 +65,21 @@ fn main() {
     let coll = client.db("rust").collection("scrobbles");
 
     let doc = doc!{"scrobbled": { "$ne": false }};
-    let mut cursor = coll.find(Some(doc.clone()), None).ok().expect("Failed to execute find");
+    let cursor = coll.find(Some(doc.clone()), None).ok().expect("Failed to execute find");
 
     for result in cursor {
         if let Ok(item) = result {
-         if let Some(&Bson::String(ref title)) = item.get("title") {
-             println!("title: {}", title);
-         }
-     }
-    }
-
+        	if let Some(&Bson::String(ref artist)) = item.get("artist") {
+        		if let Some(&Bson::String(ref album)) = item.get("album") {
+        			if let Some(&Bson::String(ref track)) = item.get("title") {
+        				if let Some(&Bson::FloatingPoint(ref duration)) = item.get("length_ms") {
+	        				now_playing(artist, track, album);
+        					thread::sleep_ms(*duration as u32);
+	            			scrobble(artist, track, album);
+     					}		
+    				}
+    			}
+			}
+		}
+	}
 }
