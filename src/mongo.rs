@@ -1,43 +1,93 @@
-// use mongodb::{Bson, bson, doc};
-// use mongodb::{Client, ThreadedClient};
-// use mongodb::db::ThreadedDatabase;
-// use mongodb::cursor::Cursor;
+use config::types::Config;
+use mongodb::db::ThreadedDatabase;
+use mongodb::{Client, ThreadedClient};
 
-// // fn main() {
-// //     let client = Client::connect("localhost", 27017).expect("Failed to initialize standalone client.");
-// //     let coll = client.db("test").collection("movies");
 
-// //     let doc = doc! {
-// //         "title": "Jaws",
-// //         "artist": "",
-// //         "album": "",
-// //         "scrobbled": "" // date
-// //     };
+pub struct MongoClient {
+    pub coll: mongodb::coll::Collection,
+}
 
-// //     // Insert document into 'test.movies' collection
-// //     coll.insert_one(doc.clone(), None).ok().expect("Failed to insert document.");
+impl MongoClient {
+    pub fn new(configuration: &Config) -> MongoClient {
+        let host = configuration
+            .lookup_str("mongo.host")
+            .expect("Missing host");
+        let port = configuration
+            .lookup_integer32("mongo.port")
+            .expect("Missing port");
+        let db = configuration.lookup_str("mongo.db").expect("Missing db");
+        let collection = configuration
+            .lookup_str("mongo.collection")
+            .expect("Missing collection");
 
-// //     // Find the document and receive a cursor
-// //     let mut cursor = coll.find(Some(doc.clone()), None).ok().expect("Failed to execute find.");
+        let client = Client::connect(host, port as u16).expect("Failed to connect to Mongo");
+        let coll = client.db(db).collection(collection);
 
-// //     // let item = cursor.next();
+        MongoClient { coll: coll }
+    }
 
-// //     for item in cursor {
-// //         // cursor.next() returns an Option<Result<Document>>
-// //         match item {
-// //             Some(Ok(doc)) => 
-// //                 scrobble(doc.get("title"), doc.get("artist"), doc.get("album"), doc.get("scrobbled")),
-// //             //     match doc.get("title") {
-// //             //         Some(&Bson::String(ref title)) => println!("{}", title),
-// //             //         _ => panic!("Expected title to be a string!"),
-// //             // },
-// //             Some(Err(_)) => 
-// //                 panic!("Failed to get next from server!"),
-// //             None => 
-// //                 panic!("Server returned no results!"),
-// //         }
-// //     }
-// // }
+    // pub fn find(&self, filter: Option<bson::Document>) -> Result<Cursor> {
+    //     &self.coll.find(filter.clone(), None).ok()
+    // }
+
+    // pub fn update(&self, item: bson::Document, filter: Option<bson::Document>) -> Result<Cursor> {
+    //     &self.coll.update_one(item, filter.clone(), None).ok()
+    // }
+}
+
+// static mut COLLECTION: Option<mongodb::coll::Collection> = None;
+
+// pub fn connect(configuration: &Config) {
+//     let host = configuration
+//         .lookup_str("mongo.host")
+//         .expect("Missing host");
+//     let port = configuration
+//         .lookup_integer32("mongo.port")
+//         .expect("Missing port");
+//     let db = configuration.lookup_str("mongo.db").expect("Missing db");
+//     let collection = configuration
+//         .lookup_str("mongo.collection")
+//         .expect("Missing collection");
+
+//     let client = Client::connect(host, port as u16).expect("Failed to connect to Mongo");
+//     let coll = client.db(db).collection(collection);
+//     unsafe {
+//         COLLECTION = Some(coll);
+//     }
+// }
+
+// pub fn find(filter: Option<bson::Document>) -> Result<Cursor> {
+//     // coll.find(Some(filter.clone()), None).ok().expect("Failed to execute find");
+//     unsafe {
+//         match &COLLECTION {
+//             Some(coll) => match coll.find(filter.clone(), None) {
+//                 Ok(_) => {
+//                     println!("Found");
+//                 }
+//                 Err(e) => {
+//                     println!("{}", e);
+//                 }
+//             },
+//             None => {}
+//         }
+//     }
+// }
+
+// pub fn update(item: &str, filter: Option<bson::Document>) {
+//     unsafe {
+//         match &COLLECTION {
+//             Some(coll) => match coll.update_one(item, filter.clone(), None) {
+//                 Ok(_) => {
+//                     println!("Updated");
+//                 }
+//                 Err(e) => {
+//                     println!("{}", e);
+//                 }
+//             },
+//             None => {}
+//         }
+//     }
+// }
 
 // pub fn get_not_scrobbled() -> Result<Cursor, String> {
 //     let client = Client::connect("localhost", 27017).expect("Failed to start Mongo");
@@ -49,8 +99,6 @@
 //     Ok(cursor)
 
 //     // coll.update_one()
-
-
 
 // }
 
@@ -67,7 +115,6 @@
 // // }
 
 // // coll.update_one(doc!{}, doc!{ "director": "Robert Zemeckis" }, None).unwrap();
-
 
 // //
 // // ## Command Monitoring
