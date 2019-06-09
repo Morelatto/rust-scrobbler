@@ -1,6 +1,6 @@
 [package]
 name = "rust-scrobbler"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Morelatto <morelatto@pm.me>"]
 edition = "2018"
 

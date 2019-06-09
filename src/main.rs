@@ -19,7 +19,7 @@ Usage:
   rust-scrobbler --version
 
 Arguments:
-  folder        Folder with music to scrobble.
+  folders       Folders with mp3 to scrobble.
 
 Options:
   -h --help     Show this message.
@@ -33,7 +33,7 @@ struct Args {
 
 fn main() {
     let args: Args = Docopt::new(USAGE)
-        .and_then(|d| d.deserialize())
+        .and_then(|d| d.version(Some("0.2.0".to_string())).deserialize())
         .unwrap_or_else(|e| e.exit());
 
     let configuration = reader::from_file(Path::new("app.conf")).expect("Failed to load app.conf");
