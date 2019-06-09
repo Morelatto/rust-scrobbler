@@ -15,7 +15,6 @@ pub struct ScrobbleClient {
 }
 
 // TODO use authentication with session key
-// TODO macro
 impl ScrobbleClient {
     pub fn new(configuration: &Config) -> ScrobbleClient {
         let api_key = configuration
@@ -32,7 +31,7 @@ impl ScrobbleClient {
             .expect("Missing password");
 
         let mut scrobbler = Scrobbler::new(api_key.to_string(), api_secret.to_string());
-        match scrobbler.authenticate(username.to_string(), password.to_string()) {
+        match scrobbler.authenticate_with_password(username.to_string(), password.to_string()) {
             Ok(_) => {
                 println!("Authenticated!");
             }
@@ -43,7 +42,7 @@ impl ScrobbleClient {
         };
 
         ScrobbleClient {
-            scrobbler: scrobbler,
+            scrobbler,
         }
     }
 
