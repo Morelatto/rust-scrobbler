@@ -1,41 +1,71 @@
-use config::reader;
-
-use mongodb::{bson, doc, Bson};
-
-use std::path::Path;
 use std::{thread, time};
+use std::path::Path;
 
-mod mongo;
+use config::reader;
+use docopt::Docopt;
+use id3::Tag;
+use serde::Deserialize;
+
+use glob::glob;
+
 mod scrobbler;
 
+const USAGE: &'static str = "
+LastFM rust scrobbler. Scrobbles all mp3 in a folder.
+
+Usage:
+  rust-scrobbler <folder>...
+  rust-scrobbler (-h | --help)
+  rust-scrobbler --version
+
+Arguments:
+  folder        Folder with music to scrobble.
+
+Options:
+  -h --help     Show this message.
+  --version     Show version.
+";
+
+#[derive(Debug, Deserialize)]
+struct Args {
+    arg_folder: Vec<String>,
+}
+
 fn main() {
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.deserialize())
+        .unwrap_or_else(|e| e.exit());
+
     let configuration = reader::from_file(Path::new("app.conf")).expect("Failed to load app.conf");
-    let db = mongo::MongoClient::new(&configuration);
     let scrobbler = scrobbler::ScrobbleClient::new(&configuration);
 
-    // TODO use change streams
-    let doc2 = doc! {"scrobbled": { "$ne": false }};
-    let cursor = db.coll.find(Some(doc2.clone()), None).unwrap();
-    for result in cursor {
-        let doc = result.expect("Received network error during cursor operations");
-        if let Some(&Bson::String(ref artist)) = doc.get("artist") {
-            if let Some(&Bson::String(ref album)) = doc.get("album") {
-                if let Some(&Bson::String(ref track)) = doc.get("title") {
-                    if let Some(&Bson::FloatingPoint(ref duration)) = doc.get("length_ms") {
-                        scrobbler.now_playing(artist, track, album);
+    for folder in args.arg_folder {
+        let expr = format!("{}/{}", folder, "**/*.mp3");
+        for entry in glob(&*expr).unwrap() {
+            match entry {
+                Ok(path) => {
+                    println!("{:?}", path.display());
+                    let tag = Tag::read_from_path(path).unwrap();
+                    println!("{:?}",tag);
 
-                        let duration = time::Duration::from_millis(*duration as u64);
-                        thread::sleep(duration);
+                    let artist = tag.artist().unwrap();
+                    let album = tag.album().unwrap();
+                    let title = tag.title().unwrap();
 
-                        scrobbler.scrobble(artist, track, album);
+                    println!("Scrobbling {} - {} - {}", artist, album, title);
+                    scrobbler.now_playing(artist, title, album);
 
-                        let update = doc! { "$set": { "scrobbled": true } };
-                        db.coll
-                            .update_one(doc.clone(), update, None)
-                            .expect("Failed to update document.");
-                    }
+                    let length = tag.duration().unwrap_or_else(|| 10);
+                    println!("Waiting for {:?} seconds", length);
+                    let duration = time::Duration::from_secs(length as u64);
+                    thread::sleep(duration);
+
+                    scrobbler.scrobble(artist, title, album);
+
                 }
+                Err(e) => println!("{:?}", e),
             }
         }
     }
+
 }
