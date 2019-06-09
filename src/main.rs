@@ -46,7 +46,6 @@ fn main() {
                 Ok(path) => {
                     println!("{:?}", path.display());
                     let tag = Tag::read_from_path(path).unwrap();
-                    println!("{:?}",tag);
 
                     let artist = tag.artist().unwrap();
                     let album = tag.album().unwrap();
@@ -55,7 +54,7 @@ fn main() {
                     println!("Scrobbling {} - {} - {}", artist, album, title);
                     scrobbler.now_playing(artist, title, album);
 
-                    let length = tag.duration().unwrap_or_else(|| 10);
+                    let length = tag.duration().unwrap_or_else(|| 30);
                     println!("Waiting for {:?} seconds", length);
                     let duration = time::Duration::from_secs(length as u64);
                     thread::sleep(duration);
